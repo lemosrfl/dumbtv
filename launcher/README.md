@@ -171,12 +171,10 @@ HOME from an app shows about 0.3 s of black, then this home screen.
 Fire OS 6.7 refuses third-party accessibility services, so it uses `Keeper`, a
 small foreground service:
 
-1. UsageStats (`appops set tv.dumbtv.home GET_USAGE_STATS allow`, granted by
-   `install.sh`) tells it when Amazon's launcher comes to the front.
-2. `ActivityManager.moveTaskToFront` brings dumbtv home back. That is not an
-   activity launch, so the 5 s delay does not apply: under 0.25 s with a real
-   remote.
-3. At boot there is no dumbtv task yet, so the first start uses an alarm.
+1. UsageStats tells Keeper when Amazon's launcher or SKY+ comes to the foreground. install.sh grants DumbTV GET_USAGE_STATS.
+2. When SKY+ (br.com.skymais) comes to the foreground, Keeper opens YouTube (com.amazon.firetv.youtube). This applies to all SKY+ launches, including the remote shortcut; Prime Video is untouched.
+3. When Amazon Home comes to the foreground, Keeper schedules an exact AlarmManager launch of dumbtv home. This avoids AppTask.moveToFront; the alarm is started by system_server and bypasses the 5 s app-switch delay.
+4. At boot there is no dumbtv task yet, so the same alarm path starts it.
 
 **Options › Open Amazon's home screen** pauses the takeover until another app is
 opened.

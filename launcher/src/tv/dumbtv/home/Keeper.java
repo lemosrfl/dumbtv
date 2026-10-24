@@ -24,6 +24,8 @@ import android.os.IBinder;
  */
 public final class Keeper extends Service {
     private static final String AMAZON_PKG = "com.amazon.tv.launcher";
+    private static final String SKY_PLUS_PKG = "br.com.skymais";
+    private static final String YOUTUBE_PKG = "com.amazon.firetv.youtube";
     // Only the home activity, never Settings/search/other KFTV screens.
     private static final String AMAZON_HOME = "com.amazon.tv.launcher.ui.HomeActivity_vNext";
     private static final long POLL_MS = 250;
@@ -34,6 +36,7 @@ public final class Keeper extends Service {
     private Handler worker;
     private UsageStatsManager usage;
     private long lastLaunch;
+    private long lastSkyRedirect;
     private String topClass;
 
     /** Lets Amazon's home stay on screen until the user opens another app, like Guard.pause(). */
@@ -120,6 +123,10 @@ public final class Keeper extends Service {
         long now = System.currentTimeMillis();
         String top = top(now);
         if (top == null) return;
+        if (SKY_PLUS_PKG.equals(top)) {
+            redirectSkyPlus(now);
+            return;
+        }
         if (!AMAZON_PKG.equals(top)) {
             if (!"com.android.systemui".equals(top) && !"android".equals(top)) paused = false;
             return;
@@ -128,6 +135,23 @@ public final class Keeper extends Service {
         if (paused) return;
         if (now - lastLaunch < DEBOUNCE_MS) return;
         launch(now);
+    }
+
+    private void redirectSkyPlus(long now) {
+        if (now - lastSkyRedirect < 2500) return;
+        lastSkyRedirect = now;
+        Intent youtube = getPackageManager().getLaunchIntentForPackage(YOUTUBE_PKG);
+        if (youtube == null) {
+            note("SKY+ redirect skipped: YouTube is not installed");
+            return;
+        }
+        youtube.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
+        try {
+            startActivity(youtube);
+            android.util.Log.i("dumbtvtest", "keeper: SKY+ -> YouTube");
+        } catch (Throwable t) {
+            note("SKY+ redirect failed: " + t);
+        }
     }
 
     private String top(long now) {
@@ -147,27 +171,6 @@ public final class Keeper extends Service {
 
     private void launch(long now) {
         lastLaunch = now;
-        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        if (manager != null) {
-            try {
-                for (ActivityManager.AppTask task : manager.getAppTasks()) {
-                    // An empty task is one being torn down (its activity was just
-                    // finished by the task reset on a HOME press); moving it makes
-                    // Fire OS relaunch the dead activity, so never touch it.
-                    String top = task.getTaskInfo().topActivity == null ? ""
-                            : task.getTaskInfo().topActivity.getClassName();
-                    String base = task.getTaskInfo().baseActivity == null ? ""
-                            : task.getTaskInfo().baseActivity.getClassName();
-                    if (top.isEmpty() && base.isEmpty()) continue;
-                    task.moveToFront();
-                    android.util.Log.i("dumbtvtest", "keeper: moveToFront");
-                    return;
-                }
-            } catch (Throwable t) {
-                note("moveToFront threw: " + t);
-                // Fall through to the alarm below.
-            }
-        }
         Intent i = new Intent(this, Home.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                         | Intent.FLAG_ACTIVITY_CLEAR_TOP
