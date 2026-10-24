@@ -143,6 +143,9 @@ sh_ dumpsys deviceidle whitelist +$PKG >/dev/null
 # cannot bind there. Keeper watches Amazon's home through UsageStats and calls
 # moveTaskToFront instead, which is not subject to the 5 s app-switch delay.
 if [[ $dev_sdk -lt 28 ]]; then
+  # Keeper launches Home through AlarmManager after Amazon's launcher receives HOME.
+  # Without this, Android 7.1 enforces its default 5 s minimum alarm futurity.
+  set_futurity on
   set_guard ""
   sh_ appops set $PKG GET_USAGE_STATS allow
   sh_ am start -W -n $PKG/.Home >/dev/null

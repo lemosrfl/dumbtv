@@ -7,11 +7,13 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.app.usage.UsageEvents;
 import android.app.usage.UsageStatsManager;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
+import android.os.UserManager;
 
 /**
  * Watches for Amazon's launcher coming back to the foreground and puts dumbtv home back on top.
@@ -38,6 +40,8 @@ public final class Keeper extends Service {
     private long lastLaunch;
     private long lastSkyRedirect;
     private String topClass;
+    private BroadcastReceiver unlockReceiver;
+    private boolean waitingForUnlock;
 
     /** Lets Amazon's home stay on screen until the user opens another app, like Guard.pause(). */
     static void pause() {
@@ -77,12 +81,41 @@ public final class Keeper extends Service {
         thread = new HandlerThread("keeper");
         thread.start();
         worker = new Handler(thread.getLooper());
+        UserManager users = (UserManager) getSystemService(Context.USER_SERVICE);
+        if (users != null && !users.isUserUnlocked()) {
+            waitingForUnlock = true;
+            unlockReceiver = new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (waitingForUnlock) {
+                        waitingForUnlock = false;
+                        unregisterReceiver(this);
+                        unlockReceiver = null;
+                        startWatching();
+                    }
+                }
+            };
+            registerReceiver(unlockReceiver, new android.content.IntentFilter(Intent.ACTION_USER_UNLOCKED));
+        } else {
+            startWatching();
+        }
+    }
+
+    private void startWatching() {
         worker.post(poll);
-        worker.postDelayed(this::firstStart, 2500);
+        // Start as soon as the system says the user is unlocked. Boot completion can arrive
+        // much later than the lock-screen boot signal on Fire OS.
+        worker.post(this::firstStart);
     }
 
     @Override
     public void onDestroy() {
+        if (unlockReceiver != null) {
+            try {
+                unregisterReceiver(unlockReceiver);
+            } catch (IllegalArgumentException ignored) {
+            }
+        }
         if (thread != null) thread.quitSafely();
         super.onDestroy();
     }
@@ -114,8 +147,15 @@ public final class Keeper extends Service {
     /** After a boot or an update there is no Home task yet, and UsageStats saw no new event. */
     private void firstStart() {
         ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
-        if (manager == null || !manager.getAppTasks().isEmpty()) return;
-        android.util.Log.i("dumbtvtest", "keeper: first start");
+        if (manager == null) return;
+        try {
+            for (ActivityManager.AppTask task : manager.getAppTasks()) {
+                if (task.getTaskInfo().numActivities > 0) return;
+            }
+        } catch (Throwable t) {
+            note("keeper: could not inspect home tasks: " + t);
+        }
+        android.util.Log.i("dumbtvtest", "keeper: first start, no active Home task");
         launch(System.currentTimeMillis());
     }
 
@@ -171,6 +211,22 @@ public final class Keeper extends Service {
 
     private void launch(long now) {
         lastLaunch = now;
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        if (manager != null) {
+            try {
+                for (ActivityManager.AppTask task : manager.getAppTasks()) {
+                    if (task.getTaskInfo().numActivities == 0) continue;
+                    task.moveToFront();
+                    android.util.Log.i("dumbtvtest", "keeper: existing home task moved to front");
+                    return;
+                }
+            } catch (Throwable t) {
+                note("keeper: move home task failed: " + t);
+            }
+        }
+
+        // At boot there is no Home task yet. The alarm is only a first-start fallback;
+        // moving an existing task avoids Android's post-HOME activity-start delay.
         Intent i = new Intent(this, Home.class)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK
                         | Intent.FLAG_ACTIVITY_CLEAR_TOP

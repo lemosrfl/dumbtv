@@ -184,29 +184,26 @@ public final class Home extends Activity {
         loadInputs();
     }
 
-    /**
-     * Waits for the app list and loads the art of the tiles that fit on screen, so the first
-     * frame is complete. After a cold start that frame is what people see first: loading in the
-     * background drew the Inputs row alone, focused HDMI 1 for ~0.3 s, then popped the apps and
-     * their banners in.
-     */
+    /** Load the app list off the UI thread so a cold boot can draw Home immediately. */
     private void firstApps(Future<List<Item>> catalog) {
-        try {
-            apps.all = catalog.get();
-        } catch (ExecutionException e) {
-            loadApps(null);
-            return;
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            loadApps(null);
-            return;
-        }
-        int fit = getResources().getDisplayMetrics().widthPixels / (cardSize()[0] + dp(18)) + 1;
-        for (Item it : Catalog.visible(cfg, Catalog.APPS, apps.all)) {
-            if (fit-- <= 0) break;
-            Catalog.art(getPackageManager(), it);
-            it.artRequested = true;
-        }
+        io.execute(() -> {
+            final List<Item> items;
+            try {
+                items = catalog.get();
+            } catch (ExecutionException e) {
+                ui.post(() -> loadApps(null));
+                return;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                ui.post(() -> loadApps(null));
+                return;
+            }
+            ui.post(() -> {
+                if (isDestroyed()) return;
+                apps.all = items;
+                render(apps);
+            });
+        });
     }
 
     @Override
