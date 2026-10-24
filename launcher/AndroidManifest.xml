@@ -26,7 +26,6 @@
             android:name=".Home"
             android:launchMode="singleTask"
             android:stateNotNeeded="true"
-            android:clearTaskOnLaunch="true"
             android:resumeWhilePausing="true"
             android:excludeFromRecents="true"
             android:screenOrientation="landscape"
