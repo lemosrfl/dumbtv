@@ -47,6 +47,7 @@ public final class Guard extends AccessibilityService {
     private final Runnable launch = () -> home(this);
     private View cover;
     private long lastLaunch;
+    private long lastButtonRedirect;
 
     /** Lets Amazon's home stay on screen until the user leaves it. */
     static void pause() {
@@ -124,6 +125,14 @@ public final class Guard extends AccessibilityService {
             if ("com.android.systemui".contentEquals(pkg) || "android".contentEquals(pkg)) return;
             paused = false;
             if (!getPackageName().contentEquals(pkg)) arrived(this);
+            String foregroundPackage = pkg.toString();
+            if (ButtonRemap.matches(this, foregroundPackage)) {
+                long now = SystemClock.uptimeMillis();
+                if (now - lastButtonRedirect >= 2500) {
+                    lastButtonRedirect = now;
+                    ButtonRemap.redirect(this, foregroundPackage);
+                }
+            }
             return;
         }
         if (paused || cls == null || !AMAZON_HOME.contentEquals(cls)) return;

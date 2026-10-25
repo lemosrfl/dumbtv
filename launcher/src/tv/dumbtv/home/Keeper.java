@@ -26,8 +26,6 @@ import android.os.UserManager;
  */
 public final class Keeper extends Service {
     private static final String AMAZON_PKG = "com.amazon.tv.launcher";
-    private static final String SKY_PLUS_PKG = "br.com.skymais";
-    private static final String YOUTUBE_PKG = "com.amazon.firetv.youtube";
     // Only the home activity, never Settings/search/other KFTV screens.
     private static final String AMAZON_HOME = "com.amazon.tv.launcher.ui.HomeActivity_vNext";
     private static final long POLL_MS = 250;
@@ -38,7 +36,7 @@ public final class Keeper extends Service {
     private Handler worker;
     private UsageStatsManager usage;
     private long lastLaunch;
-    private long lastSkyRedirect;
+    private long lastButtonRedirect;
     private String topClass;
     private BroadcastReceiver unlockReceiver;
     private boolean waitingForUnlock;
@@ -163,8 +161,10 @@ public final class Keeper extends Service {
         long now = System.currentTimeMillis();
         String top = top(now);
         if (top == null) return;
-        if (SKY_PLUS_PKG.equals(top)) {
-            redirectSkyPlus(now);
+        if (ButtonRemap.matches(this, top)) {
+            if (now - lastButtonRedirect < 2500) return;
+            lastButtonRedirect = now;
+            ButtonRemap.redirect(this, top);
             return;
         }
         if (!AMAZON_PKG.equals(top)) {
@@ -175,23 +175,6 @@ public final class Keeper extends Service {
         if (paused) return;
         if (now - lastLaunch < DEBOUNCE_MS) return;
         launch(now);
-    }
-
-    private void redirectSkyPlus(long now) {
-        if (now - lastSkyRedirect < 2500) return;
-        lastSkyRedirect = now;
-        Intent youtube = getPackageManager().getLaunchIntentForPackage(YOUTUBE_PKG);
-        if (youtube == null) {
-            note("SKY+ redirect skipped: YouTube is not installed");
-            return;
-        }
-        youtube.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED);
-        try {
-            startActivity(youtube);
-            android.util.Log.i("dumbtvtest", "keeper: SKY+ -> YouTube");
-        } catch (Throwable t) {
-            note("SKY+ redirect failed: " + t);
-        }
     }
 
     private String top(long now) {

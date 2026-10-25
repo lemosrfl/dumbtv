@@ -54,3 +54,14 @@ com.amazon.tmm.tutorial
 com.amazon.tv.releasenotes
 com.mediatek.atci.service              # fire os 6: MediaTek AT-command test service
 com.android.carrierconfig              # fire os 6: no SIM
+
+# --- additional Amazon services and features disabled in this household profile ---
+# Amazon Music is intentionally omitted and remains owner-controlled.
+com.amazon.bueller.photos              # Amazon Photos
+com.amazon.client.metrics.api
+com.amazon.ftv.screensaver             # Amazon screensaver
+com.amazon.kso.blackbird
+com.amazon.minitv.android.app          # Amazon miniTV
+com.amazon.naatyam
+com.amazon.recess
+com.amazon.uxnotification              # notification center

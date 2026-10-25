@@ -6,6 +6,8 @@
 # Named apps are handled by debloat.sh like this: Amazon's own (system) apps are
 # disabled, which restore.sh undoes; apps installed from a store are uninstalled
 # and come back from the store.
+# In this household fork, Amazon Photos, miniTV, the screensaver and notifications
+# are also in the default cleanup lists. Amazon Music deliberately remains out.
 
 # --- Amazon apps ---
 com.amazon.minitv.android.app          # Amazon miniTV, ad-supported streaming

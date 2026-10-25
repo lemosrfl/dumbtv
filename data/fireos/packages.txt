@@ -60,3 +60,14 @@ com.amazon.dummy.music
 com.amazon.dummy.settings
 com.android.traceur                    # system tracing tool
 com.android.nfc                        # no NFC hardware on Fire TV
+
+# --- additional Amazon services and features disabled in this household profile ---
+# Amazon Music is intentionally omitted and remains owner-controlled.
+com.amazon.bueller.photos              # Amazon Photos
+com.amazon.client.metrics.api
+com.amazon.ftv.screensaver             # Amazon screensaver
+com.amazon.kso.blackbird
+com.amazon.minitv.android.app          # Amazon miniTV
+com.amazon.naatyam
+com.amazon.recess
+com.amazon.uxnotification              # notification center

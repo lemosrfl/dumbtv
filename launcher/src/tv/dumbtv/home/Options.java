@@ -55,6 +55,7 @@ public final class Options extends Activity {
         list.addView(gap());
         list.addView(action("Apps on home screen", () -> pick(Catalog.APPS)));
         list.addView(action("Inputs on home screen", () -> pick(Catalog.INPUTS)));
+        list.addView(buttonRemapRow());
         list.addView(action("Reset order, names and hidden tiles", this::reset));
         list.addView(action("Open Amazon's home screen", () -> {
             Guard.amazon(this);
@@ -143,6 +144,66 @@ public final class Options extends Activity {
         row.setOnClickListener(v -> run.run());
         refreshers.add(() -> style(row));
         return row;
+    }
+
+    private View buttonRemapRow() {
+        LinearLayout row = row();
+        row.addView(label("Remap an app button"), new LinearLayout.LayoutParams(0, WRAP, 1f));
+        TextView value = Ui.text(this, 16, Ui.MUTED, Ui.MEDIUM);
+        value.setGravity(Gravity.END);
+        row.addView(value, new LinearLayout.LayoutParams(WRAP, WRAP));
+        row.setOnClickListener(v -> pickButtonSource());
+        refreshers.add(() -> {
+            String source = ButtonRemap.source(this);
+            String target = ButtonRemap.target(this);
+            String shown = "off".equals(source) || "off".equals(target)
+                    || source.isEmpty() || target.isEmpty() || source.equals(target)
+                    ? "Off" : appName(source) + "  →  " + appName(target);
+            value.setText(shown);
+        });
+        refreshers.add(() -> style(row));
+        return row;
+    }
+
+    private String appName(String packageName) {
+        for (Item app : Catalog.apps(this)) {
+            if (app.id.equals(packageName)) return app.label.toString();
+        }
+        return packageName;
+    }
+
+    private void pickButtonSource() {
+        List<Item> apps = Catalog.apps(this);
+        CharSequence[] names = new CharSequence[apps.size() + 1];
+        names[0] = "Off";
+        for (int i = 0; i < apps.size(); i++) names[i + 1] = apps.get(i).label;
+        new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle("App opened by the remote button")
+                .setMessage("The redirect applies whenever this app opens, including when you open it manually.")
+                .setItems(names, (dialog, which) -> {
+                    if (which == 0) {
+                        cfg.set("button.source", "off");
+                        cfg.set("button.target", "off");
+                        refresh();
+                    } else {
+                        pickButtonTarget(apps.get(which - 1), apps);
+                    }
+                })
+                .show();
+    }
+
+    private void pickButtonTarget(Item source, List<Item> apps) {
+        CharSequence[] names = new CharSequence[apps.size() + 1];
+        names[0] = "No redirect";
+        for (int i = 0; i < apps.size(); i++) names[i + 1] = apps.get(i).label;
+        new AlertDialog.Builder(this, Ui.DIALOG)
+                .setTitle("Open which app instead of " + source.label + "?")
+                .setItems(names, (dialog, which) -> {
+                    cfg.set("button.source", source.id);
+                    cfg.set("button.target", which == 0 ? "off" : apps.get(which - 1).id);
+                    refresh();
+                })
+                .show();
     }
 
     private LinearLayout row() {
