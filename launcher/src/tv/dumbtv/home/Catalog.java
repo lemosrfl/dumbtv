@@ -53,6 +53,10 @@ final class Catalog {
     /** Loads a banner, or an icon when the app ships no banner. Slow: call off the UI thread. */
     static void art(PackageManager pm, Item it) {
         if (it.info == null) return;
+        if ("com.amazon.venezia".equals(it.id)) {
+            it.banner = new AppsGridBanner();
+            return;
+        }
         it.banner = it.info.loadBanner(pm);
         if (it.banner == null) it.icon = it.info.loadIcon(pm);
     }
