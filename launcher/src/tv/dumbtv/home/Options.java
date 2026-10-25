@@ -178,8 +178,7 @@ public final class Options extends Activity {
         names[0] = "Off";
         for (int i = 0; i < apps.size(); i++) names[i + 1] = apps.get(i).label;
         new AlertDialog.Builder(this, Ui.DIALOG)
-                .setTitle("App opened by the remote button")
-                .setMessage("The redirect applies whenever this app opens, including when you open it manually.")
+                .setTitle("Select source app (all launches)")
                 .setItems(names, (dialog, which) -> {
                     if (which == 0) {
                         cfg.set("button.source", "off");
